@@ -198,6 +198,25 @@ public abstract class ChangeLogSet<T extends ChangeLogSet.Entry> implements Iter
         public abstract String getMsg();
 
         /**
+         * Gets the full commit message, including anything beyond the first line.
+         *
+         * <p>
+         * Unlike {@link #getMsg()}, which may return only a summary line depending on
+         * the SCM implementation, this method is intended to expose the entire message.
+         * The default implementation falls back to {@link #getMsg()} so that existing
+         * subclasses remain unaffected; SCM implementations that distinguish between a
+         * summary and a full message (such as Git) may override it.
+         *
+         * @return
+         *      Can be empty but never null.
+         * @since TODO
+         */
+        @Exported
+        public String getComment() {
+            return getMsg();
+        }
+
+        /**
          * The user who made this change.
          *
          * @return
@@ -265,6 +284,34 @@ public abstract class ChangeLogSet<T extends ChangeLogSet.Entry> implements Iter
          */
         public String getMsgEscaped() {
             return Util.escape(getMsg());
+        }
+
+        /**
+         * Gets {@link #getComment() the full comment} fully marked up by {@link ChangeLogAnnotator}.
+         *
+         * @since TODO
+         */
+        public String getCommentAnnotated() {
+            MarkupText markup = new MarkupText(getComment());
+            for (ChangeLogAnnotator a : ChangeLogAnnotator.all())
+                try {
+                    a.annotate(parent.run, this, markup);
+                } catch (RuntimeException e) {
+                    LOGGER.info("ChangeLogAnnotator " + a.toString() + " failed to annotate comment '" + getComment() + "'; " + e.getMessage());
+                } catch (Error e) {
+                    LOGGER.severe("ChangeLogAnnotator " + a + " failed to annotate comment '" + getComment() + "'; " + e.getMessage());
+                }
+
+            return markup.toString(false);
+        }
+
+        /**
+         * Full comment escaped for HTML.
+         *
+         * @since TODO
+         */
+        public String getCommentEscaped() {
+            return Util.escape(getComment());
         }
 
         static final Logger LOGGER = Logger.getLogger(ChangeLogSet.Entry.class.getName());
